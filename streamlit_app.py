@@ -2,7 +2,7 @@ import streamlit as st
 import os
 from streamlit_lottie import st_lottie
 
-from config.settings import ASSETS_PATH
+from config.settings import ASSETS_ANIMATION_PATH
 from utils import custom_sidebar_pages_order, load_lottie_file
 
 # 1. 定义全局页面配置
@@ -30,7 +30,7 @@ custom_sidebar_pages_order()
 # 4. 渲染主页面
 st.title("Welcome to Geo-visualization App")
 
-local_lottie_path = os.path.join(ASSETS_PATH, "home_page_global_map.json")
+local_lottie_path = os.path.join(ASSETS_ANIMATION_PATH, "home_page_global_map.json")
 lottie_json_data = load_lottie_file(local_lottie_path)
 if lottie_json_data:
     st_lottie(
