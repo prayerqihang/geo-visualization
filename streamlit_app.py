@@ -11,8 +11,7 @@ from utils import custom_sidebar_pages_order, load_lottie_file
 st.set_page_config(
     page_title="Geo-visualization App",
     page_icon=":earth_americas:",
-    layout="wide",
-    initial_sidebar_state="auto"
+    layout="wide"
 )
 
 # 2. 定义页面
