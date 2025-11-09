@@ -11,7 +11,7 @@ def custom_sidebar_pages_order():
     st.sidebar.page_link(page="pages/city.py", label="City", icon="🏠")
     st.sidebar.page_link(page="pages/bus.py", label="Bus Network", icon="🚌")
     st.sidebar.page_link(page="pages/metro.py", label="Metro Network", icon="🚊")
-    st.sidebar.page_link(page="pages/car.py", label="Car Network", icon="🚗")
+    st.sidebar.page_link(page="pages/car.py", label="Road Network", icon="🚗")
 
     st.sidebar.divider()
 
