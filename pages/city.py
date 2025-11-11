@@ -4,10 +4,15 @@ import json
 import pandas as pd
 import requests
 import folium
+import rasterio
+import rasterio.mask
+import geopandas as gpd
+import numpy as np
 from streamlit_folium import st_folium
+from folium.plugins import HeatMap
 
 from utils import custom_sidebar_pages_order
-from config.settings import ASSETS_MAP_PATH, FOLIUM_MAP_TYPE, COLOR_TYPE
+from config.settings import ASSETS_MAP_PATH, FOLIUM_MAP_TYPE, COLOR_TYPE, DATA_CITY_PATH
 
 
 # @st.cache_data: Streamlit 提供的函数返回值缓存
@@ -97,8 +102,6 @@ custom_sidebar_pages_order()
 st.title("Province-City-District Visualization")
 st.divider()
 
-st.markdown("### 1. 地理位置信息")
-
 data_list, df = load_cities_info()  # 加载数据
 
 # 2.1. 数据区域选择框
@@ -160,7 +163,7 @@ if selected_province_adcode is None or selected_city_adcode is None or selected_
     st.error(f"省份/城市/区域对应 adcode 数据错误！")
 
 # 2.2. 可视化选择框
-st.markdown("##### 地图配置选项")
+st.markdown("##### 地图配置")
 
 col1, col2, col3 = st.columns(3)
 with col1:
@@ -226,6 +229,8 @@ with col3:
     )
 
 # 2.2. 绘制 GeoJSON 数据
+st.divider()
+st.markdown("### 1. 地理位置信息")
 col1, col2, col3 = st.columns(3)
 
 with col1:
@@ -291,3 +296,74 @@ with col3:
 # 3. 渲染主页面——第二部分
 st.divider()
 st.markdown("### 2. 人口信息")
+
+
+def get_data_from_tif(adcode, tif_filepath):
+    """
+    使用 GeoJSON 字典从 GeoTIFF 文件中裁剪数据。
+    Returns:
+        list: 一个列表，格式为 [[lat, lon, population], ...]
+    """
+
+    # --- 步骤 1: 加载 GeoJSON 形状 ---
+    geojson_data_dict = get_geojson(adcode, is_sub=False)
+    features = geojson_data_dict['features']
+    gdf = gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")  # WorldPop 通常使用 'EPSG:4326' (WGS84)
+
+    # --- 步骤 2: 打开 TIF 文件 ---
+    with rasterio.open(tif_filepath) as src:
+        # --- 步骤 3: 统一坐标系 ---
+        if gdf.crs != src.crs:
+            print(f"转换坐标系：从 {gdf.crs} 转换为 {src.crs}")
+            gdf = gdf.to_crs(src.crs)
+        geometries = gdf.geometry
+
+        # --- 步骤 4: 裁剪 ---
+        try:
+            # clipped_array：3D numpy 数组 (bands, height, width)。brands 为波段，此处包含人口信息；height/width 表示像素数量
+            # clipped_transform：包含 6 个浮点数的数学变换矩阵，用于计算返回矩阵中每一个位置的实际经纬度
+            clipped_array, clipped_transform = rasterio.mask.mask(
+                src,  # tif 数据
+                geometries,  # 裁剪的目标形状
+                crop=True,  # True：返回恰好能覆盖目标形状的 tif 像素矩阵；False：返回全量 tif 像素矩阵（目标区域有数据，非目标区域填充 nodata 值）
+                all_touched=True,  # True：目标形状边界触及的像素均保留；False：只有当一个像素的中心点完全在目标形状内部时，才保留
+                nodata=np.nan  # 和 crop=True 协同工作，将 TIF 的 nodata 值设为 NaN
+            )
+        except ValueError as e:
+            print(f"裁剪失败: {e}")
+            print("一个常见原因是 GeoJSON 边界超出了 TIF 文件的范围。")
+            return []
+
+        # --- 步骤 5: 处理裁剪后的数据 ---
+        clipped_array = clipped_array[0]
+        heatmap_data = []
+        for r in range(clipped_array.shape[0]):
+            for c in range(clipped_array.shape[1]):
+                population = clipped_array[r, c]
+                # 过滤掉无数据 (NaN) 和人口为 0 的点
+                if not np.isnan(population) and population > 0:
+                    # 将像素坐标 (c, r) 转换为经纬度 (lon, lat)
+                    lon, lat = clipped_transform * (c, r)
+                    heatmap_data.append([float(lat), float(lon), float(
+                        population)])  # 需要将 numpy 的类型转换为 python 内置类型，否则 st_folium 在 JSON 序列化时无法识别
+        return heatmap_data
+
+
+tif_filepath = os.path.join(DATA_CITY_PATH, "chn_pop_2020_CN_100m_R2025A_v1.tif")
+heatmap_data = get_data_from_tif(selected_district_adcode, tif_filepath)
+
+m = folium.Map(tiles=selected_map_type)
+heatmap_layer = HeatMap(
+    heatmap_data,
+    name='WorldPop 人口热力图',  # 图层名称
+    radius=7,  # 热力点半径 (可调整)
+    blur=5,  # 模糊度 (可调整)
+    max_zoom=10  # 在哪个缩放级别停止聚合
+).add_to(m)
+m.fit_bounds(heatmap_layer.get_bounds())
+st_folium(m, key="map-district-population", height=400)
+
+# 1. 明确人口数值的含义
+# 2. 添加热力图图例
+# 3. 规范化代码
+# 4. 统计区总人口
