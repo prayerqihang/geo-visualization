@@ -8,7 +8,8 @@ Introduction: This is demo-project made by Streamlit API.
   - https://getemoji.com/
 - Lottie Animation: https://lottiefiles.com/
 - 行政区域 GeoJSON 数据：https://geo.datav.aliyun.com/areas_v3/bound
-- 行政区域层级关系数据：github（暂时找不到了）
+- 行政区域层级关系数据：https://github.com/modood/Administrative-divisions-of-China.git
+- 人口数据：WorldPop https://hub.worldpop.org/geodata/listing?id=135
 
 ## 1. Project
 
