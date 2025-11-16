@@ -3,12 +3,12 @@ import streamlit as st
 
 def custom_sidebar_pages_order():
     """自定义渲染侧边栏页面"""
-    st.sidebar.markdown("# :streamlit: App Navigation")
+    st.sidebar.markdown("# :streamlit: App 导航")
 
     st.sidebar.divider()
 
-    st.sidebar.page_link(page="streamlit_app.py", label="Home", icon="🌟")
-    st.sidebar.page_link(page="pages/city.py", label="City", icon="🏠")
+    st.sidebar.page_link(page="streamlit_app.py", label="主页", icon="🌟")
+    st.sidebar.page_link(page="pages/basic_info.py", label="基本信息", icon="🏠")
     st.sidebar.page_link(page="pages/bus.py", label="Bus Network", icon="🚌")
     st.sidebar.page_link(page="pages/metro.py", label="Metro Network", icon="🚊")
     st.sidebar.page_link(page="pages/car.py", label="Road Network", icon="🚗")

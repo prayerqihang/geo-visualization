@@ -11,26 +11,27 @@ ASSETS_MAP_PATH = os.path.join(ASSETS_PATH, "map")
 DATA_PATH = os.path.join(ROOT_PATH, "data")
 DATA_CITY_PATH = os.path.join(DATA_PATH, "city")
 
-PAGES_PATH = os.path.join(ROOT_PATH, "pages")
-
-UTILS_PATH = os.path.join(ROOT_PATH, "utils")
-
 # 常量
-# folium 底图类型
-FOLIUM_MAP_TYPE = {
-    "街道图": "OpenStreetMap",
-    "亮色图": "Stadia.OSMBright",
-    "灰白图一": "Stadia.StamenTonerLite",
-    "灰白图二": "Stadia.AlidadeSmooth",
-    "灰白图三": "Stadia.StamenTerrainLines",
-    "暗色图一": "Stadia.AlidadeSmoothDark",
-    "暗色图二": "CartoDB.DarkMatter"
+# mapbox 底图类型
+MAPBOX_STYLE_MAP = {
+    "街道图": "mapbox://styles/mapbox/streets-v11",
+    "浅色": "mapbox://styles/mapbox/light-v10",
+    "深色": "mapbox://styles/mapbox/dark-v10",
+    "卫星图": "mapbox://styles/mapbox/satellite-v9",
+    "卫星街道图": "mapbox://styles/mapbox/satellite-streets-v11",
+    "户外": "mapbox://styles/mapbox/outdoors-v11",
 }
 # 色盘
-COLOR_TYPE = {
+# PyDeck 需要 [R, G, B, A] 格式，使用 HEX 并用函数转换
+# HEX 十六进制颜色表示，6 位或 8 位，每两位依次表示 RGBA
+COLOR_MAP_HEX = {
     "灰色": "#808080",
+    "蓝色": "#0000FF",
+    "绿色": "#008000",
+    "红色": "#FF0000",
+    "黄色": "#FFFF00",
+    "橙色": "#FFA500",
+    "紫色": "#800080",
     "黑色": "#000000",
     "白色": "#FFFFFF",
-    "红色": "#FF0000",
-    "蓝色": "#0000FF"
 }
