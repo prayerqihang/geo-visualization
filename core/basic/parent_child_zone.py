@@ -1,29 +1,9 @@
 import streamlit as st
-import requests
 import pydeck as pdk
 import pydeck.data_utils
 
-from utils import hex_to_rgba, extract_geojson_coordinates
+from utils import get_geojson_from_aliyun, hex_to_rgba, extract_geojson_coordinates
 from config.settings import MAPBOX_STYLE_MAP, COLOR_MAP_HEX
-
-
-def get_geojson(adcode, is_sub=False):
-    """
-    从阿里云 DataV 动态获取 GeoJSON 数据。
-    - is_sub = False 仅获取当前 adcode 区域边界数据，不包含子区域边界。
-    - is_sub = True 获取当前 adcode 区域边界数据，以及一级子区域边界。
-    """
-    if is_sub:
-        url = f"https://geo.datav.aliyun.com/areas_v3/bound/{adcode}_full.json"
-    else:
-        url = f"https://geo.datav.aliyun.com/areas_v3/bound/{adcode}.json"
-    try:
-        response = requests.get(url)
-        response.raise_for_status()  # 检查请求是否成功
-        return response.json()
-    except Exception as e:
-        st.error(f"加载地图数据失败: {e}")
-        return None
 
 
 def plot_zone_map(adcode, sub_adcode, map_type_url,
@@ -35,8 +15,8 @@ def plot_zone_map(adcode, sub_adcode, map_type_url,
     - 子级行政区 sub_adcode (填充)
     """
     # 获取 GeoJSON
-    parent_geojson = get_geojson(adcode, is_sub=True)
-    child_geojson = get_geojson(sub_adcode, is_sub=False)
+    parent_geojson = get_geojson_from_aliyun(adcode, is_sub=True)
+    child_geojson = get_geojson_from_aliyun(sub_adcode, is_sub=False)
     # 颜色转换
     fill_alpha = fill_opacity if do_fill else 0.0
     fill_rgba = hex_to_rgba(fill_color_hex, fill_alpha)

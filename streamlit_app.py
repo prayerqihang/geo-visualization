@@ -19,9 +19,9 @@ st.set_page_config(
 # 注意二：此处页面的其余参数可以不设置，page_link 函数中的参数优先级更高
 st.Page(page="streamlit_app.py")
 st.Page(page="pages/basic_info.py")
+st.Page(page="pages/transport_network.py")
 st.Page(page="pages/bus.py")
 st.Page(page="pages/metro.py")
-st.Page(page="pages/car.py")
 
 # 3. 渲染侧边栏
 custom_sidebar_pages_order()

@@ -4,38 +4,30 @@ import numpy as np
 import geopandas as gpd
 import rasterio
 import rasterio.mask
-import requests
+import os
 
-
-def get_geojson(adcode, is_sub=False):
-    """
-    从阿里云 DataV 动态获取 GeoJSON 数据。
-    - is_sub = False 仅获取当前 adcode 区域边界数据，不包含子区域边界。
-    - is_sub = True 获取当前 adcode 区域边界数据，以及一级子区域边界。
-    """
-    if is_sub:
-        url = f"https://geo.datav.aliyun.com/areas_v3/bound/{adcode}_full.json"
-    else:
-        url = f"https://geo.datav.aliyun.com/areas_v3/bound/{adcode}.json"
-    try:
-        response = requests.get(url)
-        response.raise_for_status()  # 检查请求是否成功
-        return response.json()
-    except Exception as e:
-        st.error(f"加载地图数据失败: {e}")
-        return None
+from utils import get_geojson_from_aliyun
+from config.settings import DATA_CITY_PATH
 
 
 @st.cache_data
-def get_population_from_tif(adcode, tif_filepath):
+def get_population_from_tif(adcode, year):
     """
     使用 GeoJSON 字典从 GeoTIFF 文件中裁剪数据，并返回详细的人口统计信息。
     Returns:
         dict: 包含人口列表、总和、面积、密度等信息的字典。
               如果裁剪失败，返回 None。
     """
+    # 加载人口 tif 数据
+    tif_filename = f"chn_pop_{year}_CN_100m_R2025A_v1.tif"
+    tif_filepath = os.path.join(DATA_CITY_PATH, tif_filename)
+    if not os.path.exists(tif_filepath):
+        st.error(f"未找到 {year} 年的人口数据文件：{tif_filename}")
+        st.write(f"请检查路径：{tif_filepath}")
+        st.stop()
+
     # --- 步骤 1: 加载 GeoJSON 形状 ---
-    geojson_data_dict = get_geojson(adcode, is_sub=False)
+    geojson_data_dict = get_geojson_from_aliyun(adcode, is_sub=False)
     features = geojson_data_dict['features']
     gdf = gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")  # WorldPop 通常使用 'EPSG:4326' (WGS84)
 
@@ -94,26 +86,40 @@ def get_population_from_tif(adcode, tif_filepath):
 
 
 @st.cache_data(show_spinner=False)
-def get_city_population_from_tif(province_name, city_adcode, district_names, city_adcode_df, tif_filepath):
+def get_city_population_from_tif(province_name, city_adcode, district_names, adcode_df, year):
     """
     获取一个城市下所有区/县的人口和密度数据。
     Args:
         province_name (str): 选定省份名称
         city_adcode (int): 选定城市的 adcode
         district_names (list): 选定城市的 'children' 列表
-        city_adcode_df (pd.DataFrame): adcode 查找表
-        tif_filepath (str): TIF 文件的路径
+        adcode_df (pd.DataFrame): adcode 查找表
+        year (int): 年份
     Returns:
         pd.DataFrame: 包含 '区域', '总人口', '人口密度' 的 DataFrame
     """
     population_info_list = []
+
+    # 加载人口 tif 数据
+    tif_filename = f"chn_pop_{year}_CN_100m_R2025A_v1.tif"
+    tif_filepath = os.path.join(DATA_CITY_PATH, tif_filename)
+    if not os.path.exists(tif_filepath):
+        st.error(f"未找到 {year} 年的人口数据文件：{tif_filename}")
+        st.write(f"请检查路径：{tif_filepath}")
+        st.stop()
+
     # 使用 st.progress 来显示进度
     process_bar = st.progress(0, text=f"正在加载各区/县人口数据...")
 
     for i, district_name in enumerate(district_names):
         process_bar.progress((i + 1) / len(district_names), text=f"正在处理：{district_name} 的人口数据")
 
-        district_adcode = city_adcode_df.loc[district_name, "adcode"]
+        try:
+            district_adcode = adcode_df.loc[district_name, "adcode"]
+        except KeyError:
+            st.warning(f"{district_name} 没有查询到对应的 adcode，跳过处理！")
+            continue
+
         if isinstance(district_adcode, (pd.DataFrame, pd.Series)):
             if province_name in ["北京市", "天津市", "上海市", "重庆市"]:
                 prefix = str(city_adcode)[:3]
@@ -125,9 +131,9 @@ def get_city_population_from_tif(province_name, city_adcode, district_names, cit
                     district_adcode = adcode
                     count += 1
             if count != 1:
-                st.warning("展示的人口信息可能存在错误！详细信息：存在重名区域未被区分，adcode 可能错误。")
+                st.warning("人口信息可能存在错误！详细信息：存在重名区域未被区分，adcode 可能错误。")
 
-        data = get_population_from_tif(district_adcode, tif_filepath)
+        data = get_population_from_tif(district_adcode, year)
 
         population_info_list.append({
             "district": district_name,
