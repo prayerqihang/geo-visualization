@@ -1,9 +1,14 @@
 import streamlit as st
 import os
+import warnings
 from streamlit_lottie import st_lottie
 
+from core.common import custom_sidebar_pages_order
+from utils import load_lottie_file
 from config.settings import ASSETS_ANIMATION_PATH
-from utils import custom_sidebar_pages_order, load_lottie_file
+
+# 针对性处理 geopandas 的 numpy 版本不兼容的问题：忽略包含 "copy=False" 的 FutureWarning
+warnings.filterwarnings("ignore", category=FutureWarning, message=".*copy=False.*")
 
 # 1. 定义全局页面配置
 # layout: centered (default); wide
@@ -20,14 +25,12 @@ st.set_page_config(
 st.Page(page="streamlit_app.py")
 st.Page(page="pages/basic_info.py")
 st.Page(page="pages/transport_network.py")
-st.Page(page="pages/bus.py")
-st.Page(page="pages/metro.py")
 
 # 3. 渲染侧边栏
 custom_sidebar_pages_order()
 
 # 4. 渲染主页面
-st.title("欢迎来到 地理可视化 网站")
+st.title("欢迎来到 地理可视化 App")
 
 local_lottie_path = os.path.join(ASSETS_ANIMATION_PATH, "home_page_global_map.json")
 lottie_json_data = load_lottie_file(local_lottie_path)

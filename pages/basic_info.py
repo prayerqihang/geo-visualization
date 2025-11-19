@@ -5,7 +5,6 @@ import altair as alt
 
 from core.basic import *
 from core.common import *
-from utils import custom_sidebar_pages_order
 
 # 子页面配置
 st.set_page_config(
@@ -31,7 +30,7 @@ with col1:
         f"<h5 style='text-align: center;'>父行政区：全国 | 子行政区：{zone_info['province_name']}</h5>",
         unsafe_allow_html=True
     )
-    style_settings = generate_style_widgets(key="lv1", edge_width_base=5000)
+    style_settings = generate_zone_style_widgets(key="lv1", edge_width_base=5000)
     map1 = plot_zone_map(
         adcode=100000,
         sub_adcode=zone_info["province_adcode"],
@@ -44,7 +43,7 @@ with col2:
         f"<h5 style='text-align: center;'>父行政区：{zone_info['province_name']} | 子行政区：{zone_info['city_name']}</h5>",
         unsafe_allow_html=True
     )
-    style_settings = generate_style_widgets(key="lv2", edge_width_base=400)
+    style_settings = generate_zone_style_widgets(key="lv2", edge_width_base=400)
     map2 = plot_zone_map(
         adcode=zone_info["province_adcode"],
         sub_adcode=zone_info["city_adcode"],
@@ -57,7 +56,7 @@ with col3:
         f"<h5 style='text-align: center;'>父行政区：{zone_info['city_name']} | 子行政区：{zone_info['district_name']}</h5>",
         unsafe_allow_html=True
     )
-    style_settings = generate_style_widgets(key="lv3", edge_width_base=150)
+    style_settings = generate_zone_style_widgets(key="lv3", edge_width_base=150)
     map3 = plot_zone_map(
         adcode=zone_info["city_adcode"],
         sub_adcode=zone_info["district_adcode"],

@@ -63,7 +63,7 @@ def plot_zone_map(adcode, sub_adcode, map_type_url,
     return r
 
 
-def generate_style_widgets(key, edge_width_base):
+def generate_zone_style_widgets(key, edge_width_base):
     """
     生成一套独立的地图样式控制小部件。
     :parameter

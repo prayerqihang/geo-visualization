@@ -52,7 +52,7 @@ def plot_heatmap(population_data, start_rgba=None, end_rgba=None, steps=5):
     r = pdk.Deck(
         layers=[layer],
         initial_view_state=view_state,
-        map_style='mapbox://styles/mapbox/dark-v9'
+        map_style='mapbox://styles/mapbox/dark-v10'
     )
     return r
 
@@ -98,7 +98,7 @@ def plot_population_3d_map(population_data, elevation_scale=10, radius=45, pitch
     r = pdk.Deck(
         layers=[layer],
         initial_view_state=view_state,
-        map_style='mapbox://styles/mapbox/dark-v9',
+        map_style='mapbox://styles/mapbox/dark-v10',
         tooltip={
             "html": "<b>人口:</b> {population}<br/><b>经度:</b> {lon}<br/><b>纬度:</b> {lat}",
             "style": {

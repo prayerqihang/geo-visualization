@@ -10,8 +10,6 @@ def custom_sidebar_pages_order():
     st.sidebar.page_link(page="streamlit_app.py", label="主页", icon="🌟")
     st.sidebar.page_link(page="pages/basic_info.py", label="基本信息", icon="🏠")
     st.sidebar.page_link(page="pages/transport_network.py", label="交通网络", icon="🚗")
-    st.sidebar.page_link(page="pages/bus.py", label="Bus Network", icon="🚌")
-    st.sidebar.page_link(page="pages/metro.py", label="Metro Network", icon="🚊")
 
     st.sidebar.divider()
 

@@ -1,37 +1,7 @@
 import streamlit as st
-import geopandas as gpd
-import osmnx as ox
-import pydeck as pdk
-import pydeck.data_utils
 
+from core.network import *
 from core.common import *
-from utils import custom_sidebar_pages_order, get_geojson_from_aliyun
-
-
-@st.cache_data(show_spinner=False)
-def load_network_from_geojson(adcode, network_type="driver"):
-    """
-    从 osm 上下载道路网数据。
-    :param adcode (int): 区/县 adcode
-    :param network_type (str): 需要获取的交通网络类型，默认为道路网
-    :return: gdf_network_edges (GeoDataFrame): 路网边的 gdf
-    """
-    geojson_data_dict = get_geojson_from_aliyun(adcode, is_sub=False)
-    gdf = gpd.GeoDataFrame.from_features(geojson_data_dict['features'], crs="EPSG:4326")
-    polygon = gdf.geometry.union_all()  # 无论 GeoJSON 中是一个还是多个多边形，都将它们合并
-
-    if not polygon.is_valid:
-        st.error("GeoJSON 集合要素无效，请检查！")
-        return None
-
-    status_placeholder = st.empty()  # 创建 streamlit 提供的占位符，可以动态显示不同的内容
-    status_placeholder.info(f"正在从OSM下载 {network_type} 类型的路网...")
-    G = ox.graph_from_polygon(polygon, network_type=network_type)
-    gdf_network_edges = ox.graph_to_gdfs(G, nodes=False, edges=True)
-    status_placeholder.success("路网下载并构建成功！")
-
-    return gdf_network_edges
-
 
 # 子页面配置
 st.set_page_config(
@@ -61,34 +31,45 @@ view_selection = st.radio(
 
 # 1. 渲染主页面——第一部分
 if view_selection == f"{zone_info['district_name']}道路网信息":
-    # 加载道路网 gdf 数据
-    gdf_network_edges = load_network_from_geojson(zone_info["district_adcode"], network_type="drive")
+    # 加载 gdf 数据
+    driver_nodes_gdf, driver_edges_gdf = load_network_from_osm(zone_info["district_adcode"], network_type="drive")
+    bike_nodes_gdf, bike_edges_gdf = load_network_from_osm(zone_info["district_adcode"], network_type="bike")
+    walk_nodes_gdf, walk_edges_gdf = load_network_from_osm(zone_info["district_adcode"], network_type="walk")
 
-    # 创建视图
-    bounds = gdf_network_edges.total_bounds  # 获取总边界
-    points_for_view = [
-        [bounds[0], bounds[1]],  # [minx, miny] (西南角)
-        [bounds[2], bounds[3]]  # [maxx, maxy] (东北角)
-    ]
-    view_state = pdk.data_utils.compute_view(points=points_for_view)
-    view_state.pitch = 0  # 上下旋转角度，2D 俯视
-    view_state.bearing = 0  # 左右旋转角度
+    col1, col2, col3 = st.columns(3)
 
-    layer = pdk.Layer(
-        "GeoJsonLayer",
-        data=gdf_network_edges,
-        get_line_color="[255, 100, 100]",
-        get_line_width=5,
-        pickable=True,
-        auto_highlight=True,
-    )
-    deck = pdk.Deck(
-        layers=[layer],
-        initial_view_state=view_state,
-        map_style="mapbox://styles/mapbox/light-v9",
-        tooltip={"text": "道路: {name}\n类型: {highway}"}
-    )
-    st.pydeck_chart(deck)
+    # 道路网
+    with col1:
+        st.markdown(
+            f"<h5 style='text-align: center;'>机动车网络</h5>",
+            unsafe_allow_html=True
+        )
+        drive_style = generate_network_style_widgets(key="drive")
+        deck_drive = plot_network_map(driver_nodes_gdf, driver_edges_gdf, drive_style)
+        if deck_drive:
+            st.pydeck_chart(deck_drive)
+
+    # 骑行网路
+    with col2:
+        st.markdown(
+            f"<h5 style='text-align: center;'>骑行网络</h5>",
+            unsafe_allow_html=True
+        )
+        bike_style = generate_network_style_widgets(key="bike")
+        deck_bike = plot_network_map(bike_nodes_gdf, bike_edges_gdf, bike_style)
+        if deck_bike:
+            st.pydeck_chart(deck_bike)
+
+    # 步行网络
+    with col3:
+        st.markdown(
+            f"<h5 style='text-align: center;'>步行网络</h5>",
+            unsafe_allow_html=True
+        )
+        walk_style = generate_network_style_widgets(key="walk")
+        deck_walk = plot_network_map(walk_nodes_gdf, walk_edges_gdf, walk_style)
+        if deck_walk:
+            st.pydeck_chart(deck_walk)
 
 # 2. 渲染主页面——第二部分
 if view_selection == f"{zone_info['district_name']}地面公交路网信息":

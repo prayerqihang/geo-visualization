@@ -10,6 +10,7 @@ ASSETS_MAP_PATH = os.path.join(ASSETS_PATH, "map")
 
 DATA_PATH = os.path.join(ROOT_PATH, "data")
 DATA_CITY_PATH = os.path.join(DATA_PATH, "city")
+DATA_NETWORK_PATH = os.path.join(DATA_PATH, "network")
 
 # 常量
 # mapbox 底图类型
