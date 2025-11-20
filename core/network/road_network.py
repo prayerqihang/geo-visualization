@@ -4,6 +4,8 @@ import osmnx as ox
 import os
 import pydeck as pdk
 import pydeck.data_utils
+import numpy as np
+import pandas as pd
 
 from config.settings import DATA_NETWORK_PATH, MAPBOX_STYLE_MAP, COLOR_MAP_HEX
 from utils import *
@@ -94,14 +96,19 @@ def generate_network_style_widgets(key):
 
             config_dict["show_edges"] = st.checkbox("显示道路", value=True, key=f"show_edges_{key}")
             if config_dict["show_edges"]:
-                # 线条颜色
-                edge_color = st.selectbox(
-                    "道路颜色",
-                    options=list(COLOR_MAP_HEX.keys()),
-                    index=list(COLOR_MAP_HEX.keys()).index("红色"),
-                    key=f"edge_color_{key}"
-                )
-                config_dict["edge_color"] = COLOR_MAP_HEX[edge_color]
+                # 是否开启渐变渲染
+                config_dict["use_gradient_edges"] = st.checkbox("按道路长度渐变渲染", value=False, key=f"grad_edge_{key}")
+                if not config_dict["use_gradient_edges"]:
+                    # 不开启渐变，才显示单色选择器
+                    edge_color = st.selectbox(
+                        "道路颜色",
+                        options=list(COLOR_MAP_HEX.keys()),
+                        index=list(COLOR_MAP_HEX.keys()).index("红色"),
+                        key=f"edge_color_{key}"
+                    )
+                    config_dict["edge_color"] = COLOR_MAP_HEX[edge_color]
+                else:
+                    config_dict["edge_color"] = "#000000"  # 占位，不会用到
                 # 线条宽度
                 config_dict["edge_width"] = st.slider(
                     "道路宽度 (px)", 0.5, 10.0, 1.5, 0.5,
@@ -112,20 +119,25 @@ def generate_network_style_widgets(key):
                     "道路透明度", 0.0, 1.0, 0.8, 0.1,
                     key=f"edge_opacity_{key}"
                 )
+
         # 节点（Nodes）配置
         with col2:
             st.markdown("#### 交叉口样式配置")
 
             config_dict["show_nodes"] = st.checkbox("显示节点", value=False, key=f"show_nodes_{key}")
             if config_dict["show_nodes"]:
-                # 节点颜色
-                node_color = st.selectbox(
-                    "节点颜色",
-                    options=list(COLOR_MAP_HEX.keys()),
-                    index=list(COLOR_MAP_HEX.keys()).index("蓝色"),
-                    key=f"node_color_{key}"
-                )
-                config_dict["node_color"] = COLOR_MAP_HEX[node_color]
+                # 是否开启渐变渲染
+                config_dict["use_gradient_nodes"] = st.checkbox("按度渐变渲染", value=False, key=f"grad_node_{key}")
+                if not config_dict["use_gradient_nodes"]:
+                    node_color = st.selectbox(
+                        "节点颜色",
+                        options=list(COLOR_MAP_HEX.keys()),
+                        index=list(COLOR_MAP_HEX.keys()).index("蓝色"),
+                        key=f"node_color_{key}"
+                    )
+                    config_dict["node_color"] = COLOR_MAP_HEX[node_color]
+                else:
+                    config_dict["node_color"] = "#000000"  # 占位
                 # 节点半径
                 config_dict["node_radius"] = st.slider(
                     "节点半径 (meter)", 10.0, 50.0, 20.0, 1.0,
@@ -154,12 +166,20 @@ def plot_network_map(nodes_gdf, edges_gdf, config_dict):
     # 创建图层
     layers = []
     if config_dict["show_edges"] and edges_gdf is not None:
-        edge_color_rgba = hex_to_rgba(config_dict["edge_color"], config_dict["edge_opacity"])
+        edges_gdf["length"] = edges_gdf["length"].astype(float)  # 转换格式
+
+        if config_dict["use_gradient_edges"]:
+            edges_gdf["render_color"] = calculate_gradient_color(
+                values=edges_gdf["length"], start_rgba=[255, 230, 0, 150], end_rgba=[255, 0, 0, 255])  # 计算颜色列
+            get_line_color = "render_color"
+        else:
+            get_line_color = hex_to_rgba(config_dict["edge_color"], config_dict["edge_opacity"])
+
         edge_layer = pdk.Layer(
             type="GeoJsonLayer",
             id="layer_edges",
             data=edges_gdf,
-            get_line_color=edge_color_rgba,
+            get_line_color=get_line_color,  # 传入列名，或固定颜色列表
             get_line_width=config_dict["edge_width"],
             line_width_units="pixels",  # 使用像素单位
             line_width_min_pixels=1,
@@ -169,15 +189,29 @@ def plot_network_map(nodes_gdf, edges_gdf, config_dict):
         )
         layers.append(edge_layer)
 
+    # 计算度（必须要在 if 条件外计算，否则后续绘图时会找不到 degree 列）
+    all_nodes = list(edges_gdf.index.get_level_values("u")) + list(
+        edges_gdf.index.get_level_values("u"))  # 汇总所有边两端的节点。注意 u,v 列是索引
+    node_counts = pd.Series(all_nodes).value_counts()  # 统计每个节点出现了几次
+    # plot_nodes 的 index 即为 nodes 的编号，根据编号去 node_counts 中匹配对应的值；如果没有匹配到，则说明这个节点没有边相连
+    nodes_gdf["degree"] = nodes_gdf.index.map(node_counts).fillna(0)
+    nodes_gdf["degree"] = nodes_gdf["degree"] / 2  # 有向图，除以 2
+
     if config_dict["show_nodes"] and nodes_gdf is not None:
-        node_color_rgba = hex_to_rgba(config_dict["node_color"], config_dict["node_opacity"])
+        if config_dict["use_gradient_nodes"]:
+            nodes_gdf["render_color"] = calculate_gradient_color(
+                values=nodes_gdf["degree"], start_rgba=[144, 238, 144, 255], end_rgba=[0, 0, 255, 255])
+            get_fill_color = "render_color"
+        else:
+            get_fill_color = hex_to_rgba(config_dict["node_color"], config_dict["node_opacity"])
+
         node_layer = pdk.Layer(
             type="GeoJsonLayer",
             id="layer_nodes",
             data=nodes_gdf,
             stroked=False,
             filled=True,
-            get_fill_color=node_color_rgba,
+            get_fill_color=get_fill_color,
             get_radius=config_dict["node_radius"],
             radius_units="pixels",  # 使用像素单位
             radius_min_pixels=2,
@@ -217,3 +251,37 @@ def plot_network_map(nodes_gdf, edges_gdf, config_dict):
     )
 
     return deck
+
+
+def calculate_gradient_color(values, start_rgba=None, end_rgba=None, steps=5):
+    """
+    基于数值列计算分级渐变颜色
+    :param values: pd.Series, 数值列
+    :param start_rgba: list, [r, g, b, a] 或 [r, g, b], 默认黄色
+    :param end_rgba: list, [r, g, b, a] 或 [r, g, b], 默认红色
+    :param steps: int, 分级数量 (例如 5 表示将数据分为 5 个颜色等级)
+    :return: list of [r, g, b, a]
+    """
+    if start_rgba is None:
+        start_rgba = [255, 255, 0, 150]  # 默认淡黄
+    if end_rgba is None:
+        end_rgba = [255, 0, 0, 255]  # 默认深红
+
+    start_arr = np.array(start_rgba)
+    end_arr = np.array(end_rgba)
+    palette = np.linspace(start_arr, end_arr, steps, dtype=int)
+
+    # 数据归一化与分箱
+    val_array = values.to_numpy()
+    min_val = np.min(val_array)
+    max_val = np.max(val_array)
+    norm_values = (val_array - min_val) / (max_val - min_val)
+    # 将数据映射到索引 0 ~ (steps-1)。例如 steps=5, norm=0.99 -> index=4
+    indices = (norm_values * steps).astype(int)
+    # 边界处理：最大值 1.0 会变成 steps (越界)，需限制在 steps-1
+    indices = np.clip(indices, 0, steps - 1)
+
+    # 花式索引：用一个整数数组 (indices) 去索引另一个数组
+    mapped_colors = np.take(palette, indices, axis=0)
+
+    return mapped_colors.tolist()
